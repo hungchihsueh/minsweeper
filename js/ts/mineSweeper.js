@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.clickCell = exports.flagCell = exports.createGame = void 0;
+exports.clickCell = exports.createMineSweeperGame = void 0;
 const MIN_WIDTH_AND_HEIGHT = 5;
-function createGame(width, height, mineCount) {
+function createMineSweeperGame(width, height, mineCount) {
     // input check
     if (width < MIN_WIDTH_AND_HEIGHT || height < MIN_WIDTH_AND_HEIGHT) {
         throw new Error(`Board size should be at least ${MIN_WIDTH_AND_HEIGHT}x${MIN_WIDTH_AND_HEIGHT}`);
@@ -40,27 +40,60 @@ function createGame(width, height, mineCount) {
         status: "not started",
     };
 }
-exports.createGame = createGame;
-function flagCell(game, x, y) {
-    if (isGameOver(game))
-        return game;
-    if (!isInputValid(game, x, y)) {
-        return game;
+exports.createMineSweeperGame = createMineSweeperGame;
+function isInputValid(game, x, y) {
+    if (x < 0 || x >= game.board.length || y < 0 || y >= game.board[0].length) {
+        console.log("Invalid cell coordinates");
+        return false;
     }
-    const { board } = game;
-    let cell = board[x][y];
-    cell.isFlagged = !cell.isFlagged;
+    return true;
+}
+function isGameOver(game) {
+    if (game.status === "won" || game.status === "lost") {
+        console.log("Game is over");
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+function checkIsWon(game) {
+    const { board, width, height } = game;
+    let isWon = true;
+    for (let i = 0; i < height; i++) {
+        for (let j = 0; j < width; j++) {
+            let cell = board[i][j];
+            if (!cell.isMine && !cell.isRevealed) {
+                isWon = false;
+                break;
+            }
+        }
+    }
+    if (isWon) {
+        game.status = "won";
+    }
     return game;
 }
-exports.flagCell = flagCell;
 function clickCell(game, x, y) {
     if (isGameOver(game))
         return game;
     if (!isInputValid(game, x, y)) {
         return game;
     }
+    if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
+        console.log("Coordinates should be integers");
+        return game;
+    }
     const { board, mineCount, width, height } = game;
     let cell = board[x][y];
+    if (cell.isRevealed) {
+        console.log("Cell already revealed");
+        return game;
+    }
+    if (cell.isFlagged) {
+        console.log("Cell is flagged");
+        return game;
+    }
     // if game has not started, place mines and count neighbour bombs
     if (game.status === "not started") {
         // place mines
@@ -99,14 +132,6 @@ function clickCell(game, x, y) {
         game.status = "playing";
         return game;
     }
-    if (cell.isRevealed) {
-        console.log("Cell already revealed");
-        return game;
-    }
-    if (cell.isFlagged) {
-        console.log("Cell is flagged");
-        return game;
-    }
     if (cell.isMine) {
         console.log("Game over");
         game.status = "lost";
@@ -114,55 +139,43 @@ function clickCell(game, x, y) {
         return game;
     }
     else {
-        cell.isRevealed = true;
+        // cell.isRevealed = true;
         // check all neighbours
-        for (let i = -1; i <= 1; i++) {
-            for (let j = -1; j <= 1; j++) {
-                // check if neighbour is not out of bounds
-                if (x + i >= 0 &&
-                    x + i < board.length &&
-                    y + j >= 0 &&
-                    y + j < board[0].length) {
-                    if (!board[x + i][y + j].isMine) {
-                        board[x + i][y + j].isRevealed = true;
-                    }
-                }
-            }
+        if (cell.neighbourBombs === 0) {
+            revealAllCellWithNoNeighbourBombs(game, x, y);
         }
     }
     return checkIsWon(game);
 }
 exports.clickCell = clickCell;
-function isInputValid(game, x, y) {
-    if (x < 0 || x >= game.board.length || y < 0 || y >= game.board[0].length) {
-        console.log("Invalid cell coordinates");
-        return false;
-    }
-    return true;
-}
-function isGameOver(game) {
-    if (game.status === "won" || game.status === "lost") {
-        console.log("Game is over");
-        return true;
-    }
-    else {
-        return false;
-    }
-}
-function checkIsWon(game) {
+function revealAllCellWithNoNeighbourBombs(game, x, y) {
     const { board, width, height } = game;
-    let isWon = true;
-    for (let i = 0; i < height; i++) {
-        for (let j = 0; j < width; j++) {
-            let cell = board[i][j];
-            if (!cell.isMine && !cell.isRevealed) {
-                isWon = false;
-                break;
+    let cell = board[x][y];
+    if (cell.isRevealed)
+        return;
+    cell.isRevealed = true;
+    if (cell.neighbourBombs === 0) {
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                // check if neighbour is not out of bounds
+                if (x + i >= 0 && x + i < height && y + j >= 0 && y + j < width) {
+                    revealAllCellWithNoNeighbourBombs(game, x + i, y + j);
+                }
             }
         }
     }
-    if (isWon) {
-        game.status = "won";
-    }
-    return game;
 }
+// export function flagCell(
+// 	game: MineSweeperGame,
+// 	x: number,
+// 	y: number,
+// ): MineSweeperGame {
+// 	if (isGameOver(game)) return game;
+// 	if (!isInputValid(game, x, y)) {
+// 		return game;
+// 	}
+// 	const { board } = game;
+// 	let cell = board[x][y];
+// 	cell.isFlagged = !cell.isFlagged;
+// 	return game;
+// }
